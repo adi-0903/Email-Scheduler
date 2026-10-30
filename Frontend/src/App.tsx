@@ -8,7 +8,8 @@ import { ComposeModal } from './components/ComposeModal';
 import { LoginScreen } from './components/LoginScreen';
 import { EmailPreviewModal } from './components/EmailPreviewModal';
 import { ToastContainer } from './components/Toast';
-import { ActiveTab, ComposeFormState, EmailItem, ToastItem } from './types';
+import { SendingLimitsView } from './components/SendingLimitsView';
+import { ActiveTab, ComposeFormState, EmailItem, ToastItem, QuotaData } from './types';
 import {
   INITIAL_COUNTS,
   SAMPLE_SCHEDULED_EMAILS,
@@ -79,6 +80,22 @@ export default function App() {
   const [sentEmails, setSentEmails] = useState<EmailItem[]>([]);
   const [scheduledTotal, setScheduledTotal] = useState(0);
   const [sentTotal, setSentTotal] = useState(0);
+
+  // Sending Limits & Quota
+  const [quotaData, setQuotaData] = useState<QuotaData | null>(null);
+
+  const loadUserQuota = useCallback(async () => {
+    if (!user.email) {
+      setQuotaData(null);
+      return;
+    }
+    try {
+      const q = await realtimeClient.fetchQuota(user.email);
+      if (q) setQuotaData(q);
+    } catch (err) {
+      console.warn('[App] Could not load user quota:', err);
+    }
+  }, [user.email]);
 
   // Loading & Error states
   const [isLoading, setIsLoading] = useState(false);
@@ -156,17 +173,19 @@ export default function App() {
     }
   }, [user.email]);
 
-  // Sync emails whenever active user changes
+  // Sync emails & sending quota whenever active user changes
   useEffect(() => {
     if (isLoggedIn && user.email) {
       loadBackendEmails();
+      loadUserQuota();
     } else {
       setScheduledEmails([]);
       setSentEmails([]);
       setScheduledTotal(0);
       setSentTotal(0);
+      setQuotaData(null);
     }
-  }, [isLoggedIn, user.email, loadBackendEmails]);
+  }, [isLoggedIn, user.email, loadBackendEmails, loadUserQuota]);
 
   // Check Slack status on mount or user change
   useEffect(() => {
@@ -366,10 +385,14 @@ export default function App() {
 
           setScheduledEmails((prev) => [...newItems, ...prev]);
           setScheduledTotal((prev) => prev + newItems.length);
+          loadUserQuota();
           addToast(
             'success',
             `🚀 ${newItems.length} email(s) successfully queued in BullMQ (Neon DB)!`
           );
+          return;
+        } else if (result.error) {
+          addToast('error', result.error);
           return;
         }
       } catch (err: any) {
@@ -450,6 +473,7 @@ export default function App() {
         }}
         scheduledCount={scheduledTotal}
         sentCount={sentTotal}
+        quotaData={quotaData}
         isSlackConnected={isSlackConnected}
         onToggleSlack={handleToggleSlack}
         userName={user.name}
@@ -473,63 +497,77 @@ export default function App() {
 
         {/* Content Body */}
         <main className="flex-1 p-6 lg:p-8 max-w-[1360px] w-full mx-auto pb-16">
-          {/* Overview Metric Cards */}
-          <MetricCards
-            scheduledCount={scheduledTotal}
-            sentCount={sentTotal}
-          />
+          {activeTab === 'limits' ? (
+            <SendingLimitsView
+              quota={quotaData}
+              userEmail={user.email}
+              userName={user.name}
+              onRefresh={loadUserQuota}
+              onComposeClick={() => setIsComposeOpen(true)}
+              userEmails={[...scheduledEmails, ...sentEmails]}
+              isLoading={isLoading}
+            />
+          ) : (
+            <>
+              {/* Overview Metric Cards */}
+              <MetricCards
+                scheduledCount={scheduledTotal}
+                sentCount={sentTotal}
+              />
 
-          {/* Tabs & Toolbar */}
-          <TabsToolbar
-            activeTab={activeTab}
-            onTabChange={(tab) => {
-              setActiveTab(tab);
-              setSearchQuery('');
-              setCurrentPage(1);
-            }}
-            scheduledCount={scheduledTotal}
-            sentCount={sentTotal}
-            searchQuery={searchQuery}
-            onSearchChange={(q) => {
-              setSearchQuery(q);
-              setCurrentPage(1);
-            }}
-            onComposeClick={() => {
-              setIsComposeOpen(true);
-            }}
-            isLoading={isLoading}
-          />
+              {/* Tabs & Toolbar */}
+              <TabsToolbar
+                activeTab={activeTab}
+                onTabChange={(tab) => {
+                  setActiveTab(tab);
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                scheduledCount={scheduledTotal}
+                sentCount={sentTotal}
+                searchQuery={searchQuery}
+                onSearchChange={(q) => {
+                  setSearchQuery(q);
+                  setCurrentPage(1);
+                }}
+                onComposeClick={() => {
+                  setIsComposeOpen(true);
+                }}
+                isLoading={isLoading}
+              />
 
-          {/* Data Table Card */}
-          <DataTable
-            activeTab={activeTab}
-            emails={paginatedEmails}
-            totalCount={activeTotalCount}
-            isLoading={isLoading}
-            isError={isTableError}
-            onRetry={() => {
-              setIsTableError(false);
-              setIsLoading(true);
-              setTimeout(() => {
-                setIsLoading(false);
-              }, 600);
-            }}
-            onComposeClick={() => {
-              setIsComposeOpen(true);
-            }}
-            onSwitchToScheduled={() => {
-              setActiveTab('scheduled');
-              setSearchQuery('');
-            }}
-            onPreviewEmail={(email) => setPreviewEmail(email)}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            onPageChange={(page) => setCurrentPage(page)}
-            onRowsPerPageChange={(limit) => {
-              setRowsPerPage(limit);
-              setCurrentPage(1);
-            }}
-          />
+              {/* Data Table Card */}
+              <DataTable
+                activeTab={activeTab}
+                emails={paginatedEmails}
+                totalCount={activeTotalCount}
+                isLoading={isLoading}
+                isError={isTableError}
+                onRetry={() => {
+                  setIsTableError(false);
+                  setIsLoading(true);
+                  setTimeout(() => {
+                    setIsLoading(false);
+                  }, 600);
+                }}
+                onComposeClick={() => {
+                  setIsComposeOpen(true);
+                }}
+                onSwitchToScheduled={() => {
+                  setActiveTab('scheduled');
+                  setSearchQuery('');
+                }}
+                onPreviewEmail={(email) => setPreviewEmail(email)}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                onPageChange={(page) => setCurrentPage(page)}
+                onRowsPerPageChange={(limit) => {
+                  setRowsPerPage(limit);
+                  setCurrentPage(1);
+                }}
+              />
+            </>
+          )}
         </main>
       </div>
 

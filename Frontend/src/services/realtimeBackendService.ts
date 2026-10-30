@@ -3,7 +3,7 @@
  * ReachInbox Outbound Engine
  */
 
-import { EmailItem } from '../types';
+import { EmailItem, QuotaData } from '../types';
 
 export interface CampaignPayload {
   fromEmail: string;
@@ -245,6 +245,21 @@ export class RealtimeEmailClient {
     } catch (err) {
       console.warn('[RealtimeClient] searchEmails fallback:', err);
       return [];
+    }
+  }
+
+  /**
+   * Fetches user-isolated daily, weekly, and monthly sending limits & usage
+   */
+  public async fetchQuota(sender: string): Promise<QuotaData | null> {
+    try {
+      if (!sender) return null;
+      const res = await fetch(`${this.httpUrl}/api/emails/quota?sender=${encodeURIComponent(sender)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('[RealtimeClient] fetchQuota fallback:', err);
+      return null;
     }
   }
 

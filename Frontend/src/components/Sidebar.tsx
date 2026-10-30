@@ -9,14 +9,16 @@ import {
   Layers,
   ExternalLink,
   Activity,
+  Gauge,
 } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { ActiveTab, QuotaData } from '../types';
 
 interface SidebarProps {
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
   scheduledCount: number;
   sentCount: number;
+  quotaData?: QuotaData | null;
   isSlackConnected: boolean;
   onToggleSlack: (connected: boolean) => void;
   userName: string;
@@ -34,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   scheduledCount,
   sentCount,
+  quotaData,
   isSlackConnected,
   onToggleSlack,
   userName,
@@ -139,6 +142,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               {sentCount}
             </span>
+          </button>
+
+          {/* Sending Limits & Quota tab */}
+          <button
+            type="button"
+            onClick={() => onSelectTab('limits')}
+            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+              activeTab === 'limits'
+                ? 'bg-blue-50 text-blue-700 shadow-2xs font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Gauge className={`w-4 h-4 ${activeTab === 'limits' ? 'text-blue-600' : 'text-slate-400'}`} />
+              <span>Sending Limits</span>
+            </div>
+            {quotaData?.daily ? (
+              <span
+                className={`text-[10px] font-mono tabular-nums px-2 py-0.5 rounded-full font-bold ${
+                  quotaData.daily.remaining <= 10
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                }`}
+              >
+                {quotaData.daily.used}/100d
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                100/d
+              </span>
+            )}
           </button>
 
           {/* Live Monitoring & Evaluator Tools */}

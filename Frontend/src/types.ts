@@ -53,7 +53,25 @@ export interface ComposeErrors {
   delaySeconds?: string;
 }
 
-export type ActiveTab = 'scheduled' | 'sent';
+export type ActiveTab = 'scheduled' | 'sent' | 'limits';
+
+export interface QuotaPeriod {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetsAt: string;
+}
+
+export interface QuotaData {
+  sender: string;
+  daily: QuotaPeriod;
+  weekly: QuotaPeriod;
+  monthly: QuotaPeriod;
+  pacing: {
+    minDelaySeconds: number;
+    maxPerHour: number;
+  };
+}
 
 export interface ToastItem {
   id: string;

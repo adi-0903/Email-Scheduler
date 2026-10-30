@@ -182,6 +182,96 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 });
 
 /**
+ * GET /api/emails/quota?sender=user@example.com
+ * Returns strict daily, weekly, and monthly limits and usage for a specific sender.
+ */
+router.get("/quota", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { sender } = req.query as { sender?: string };
+
+    if (!sender || !sender.trim()) {
+      res.status(400).json({ error: "Sender email is required to retrieve quota." });
+      return;
+    }
+
+    const normalizedSender = sender.toLowerCase().trim();
+    const now = new Date();
+
+    // Start of today (UTC midnight)
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+
+    // Start of this week (Monday 00:00 UTC)
+    const dayOfWeek = now.getUTCDay();
+    const distanceToMonday = (dayOfWeek + 6) % 7;
+    const startOfWeek = new Date(startOfToday.getTime() - distanceToMonday * 24 * 60 * 60 * 1000);
+
+    // Start of this month (1st of month 00:00 UTC)
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+
+    // Next reset timestamps
+    const resetDaily = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    const resetWeekly = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const resetMonthly = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+
+    // Tier limits
+    const DAILY_LIMIT = 100;
+    const WEEKLY_LIMIT = 500;
+    const MONTHLY_LIMIT = 2000;
+
+    // Count user's emails in database (scheduled or sent)
+    const [dailyUsed, weeklyUsed, monthlyUsed] = await Promise.all([
+      prisma.email.count({
+        where: {
+          sender: normalizedSender,
+          createdAt: { gte: startOfToday },
+        },
+      }),
+      prisma.email.count({
+        where: {
+          sender: normalizedSender,
+          createdAt: { gte: startOfWeek },
+        },
+      }),
+      prisma.email.count({
+        where: {
+          sender: normalizedSender,
+          createdAt: { gte: startOfMonth },
+        },
+      }),
+    ]);
+
+    res.json({
+      sender: normalizedSender,
+      daily: {
+        used: dailyUsed,
+        limit: DAILY_LIMIT,
+        remaining: Math.max(0, DAILY_LIMIT - dailyUsed),
+        resetsAt: resetDaily.toISOString(),
+      },
+      weekly: {
+        used: weeklyUsed,
+        limit: WEEKLY_LIMIT,
+        remaining: Math.max(0, WEEKLY_LIMIT - weeklyUsed),
+        resetsAt: resetWeekly.toISOString(),
+      },
+      monthly: {
+        used: monthlyUsed,
+        limit: MONTHLY_LIMIT,
+        remaining: Math.max(0, MONTHLY_LIMIT - monthlyUsed),
+        resetsAt: resetMonthly.toISOString(),
+      },
+      pacing: {
+        minDelaySeconds: 2,
+        maxPerHour: 200,
+      },
+    });
+  } catch (err: any) {
+    console.error("[API] Error fetching quota:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /api/emails/:id
  * Get a single email by ID (with sender isolation).
  */

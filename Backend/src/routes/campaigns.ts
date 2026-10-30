@@ -53,6 +53,30 @@ router.post("/schedule", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // ── Enforce User Daily Sending Limit (100 emails/day) ──
+    const normalizedSender = fromEmail.toLowerCase().trim();
+    const now = new Date();
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const DAILY_LIMIT = 100;
+
+    const dailyUsed = await prisma.email.count({
+      where: {
+        sender: normalizedSender,
+        createdAt: { gte: startOfToday },
+      },
+    });
+
+    const remainingDaily = Math.max(0, DAILY_LIMIT - dailyUsed);
+    if (recipients.length > remainingDaily) {
+      res.status(429).json({
+        success: false,
+        error: `Daily limit reached! You have ${remainingDaily} send(s) remaining today (Limit: ${DAILY_LIMIT}/day). You targeted ${recipients.length} recipients.`,
+        remaining: remainingDaily,
+        limit: DAILY_LIMIT,
+      });
+      return;
+    }
+
     const campaignId = `camp_${Date.now()}`;
     const startTimestamp = startTimeIso ? new Date(startTimeIso).getTime() : Date.now();
     const baseDelayMs = Math.max(0, startTimestamp - Date.now());
