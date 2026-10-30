@@ -9,6 +9,7 @@ import emailRoutes from "./routes/emails";
 import campaignRoutes from "./routes/campaigns";
 import searchRoutes from "./routes/search";
 import slackRoutes from "./routes/slack";
+import authRoutes, { ensureDefaultUser } from "./routes/auth";
 
 // Queue & Worker
 import { emailQueue } from "./queue/emailQueue";
@@ -49,6 +50,7 @@ async function main() {
   app.use("/api/campaigns", campaignRoutes);
   app.use("/api/search", searchRoutes);
   app.use("/api/slack", slackRoutes);
+  app.use("/api/auth", authRoutes);
 
   // ── Health check ──
   app.get("/health", async (_req, res) => {
@@ -118,6 +120,9 @@ async function main() {
   if (!dbConnected) {
     process.exit(1);
   }
+
+  // Ensure default demo user exists
+  await ensureDefaultUser();
 
   // 2. Initialize Elasticsearch index (non-blocking — server starts even if ES is down)
   ensureIndex()

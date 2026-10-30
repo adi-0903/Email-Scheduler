@@ -35,6 +35,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   const [googleError, setGoogleError] = useState('');
 
+  const backendBaseUrl =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) ||
+    'https://email-scheduler-jqgy.onrender.com';
+
   const handleToggleMode = (newMode: 'login' | 'signup') => {
     setMode(newMode);
     setErrors({});
@@ -63,11 +67,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 headers: { Authorization: `Bearer ${resp.access_token}` },
               });
               const info = await res.json();
-              setIsLoading(false);
-              onLogin({
-                name: info.name || info.email.split('@')[0],
-                email: info.email,
-              });
+              await handleSelectGoogleAccount(info.name || info.email.split('@')[0], info.email);
             } catch (fetchErr) {
               console.error('[Google Auth] Failed to fetch profile:', fetchErr);
               setIsLoading(false);
@@ -85,16 +85,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setIsGoogleModalOpen(true);
   };
 
-  const handleSelectGoogleAccount = (accName: string, accEmail: string) => {
+  const handleSelectGoogleAccount = async (accName: string, accEmail: string) => {
     setIsLoading(true);
     setIsGoogleModalOpen(false);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch(`${backendBaseUrl}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: accName, email: accEmail }),
+      });
+      const data = await res.json();
+      setIsLoading(false);
+
+      if (res.ok && data.user) {
+        onLogin(data.user);
+      } else {
+        onLogin({
+          name: accName,
+          email: accEmail,
+        });
+      }
+    } catch {
       setIsLoading(false);
       onLogin({
         name: accName,
         email: accEmail,
       });
-    }, 400);
+    }
   };
 
   const handleCustomGoogleSubmit = (e: React.FormEvent) => {
@@ -115,7 +133,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     handleSelectGoogleAccount(resolvedName, customGoogleEmail.trim());
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { name?: string; email?: string; password?: string } = {};
 
@@ -141,18 +159,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const displayName =
-        name.trim() ||
-        (email.split('@')[0]
-          ? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          : 'User');
-      onLogin({
-        name: displayName,
-        email: email.trim(),
+    setErrors({});
+
+    const endpoint =
+      mode === 'signup' ? `${backendBaseUrl}/api/auth/register` : `${backendBaseUrl}/api/auth/login`;
+
+    const payload =
+      mode === 'signup'
+        ? { name: name.trim(), email: email.trim(), password }
+        : { email: email.trim(), password };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-    }, 450);
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setIsLoading(false);
+        const errMsg = data.error || 'Authentication failed. Please try again.';
+        if (errMsg.toLowerCase().includes('password')) {
+          setErrors({ password: errMsg });
+        } else {
+          setErrors({ email: errMsg });
+        }
+        return;
+      }
+
+      setIsLoading(false);
+      onLogin(data.user);
+    } catch {
+      setIsLoading(false);
+      setErrors({
+        email: 'Could not connect to authentication server. Please check your connection.',
+      });
+    }
   };
 
   const handlePrefillDemo = () => {
