@@ -77,6 +77,11 @@ export default function App() {
   // Toasts
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
+  // Latest sent email preview url for Ethereal direct link
+  const latestEtherealUrl = useMemo(() => {
+    return sentEmails.find((e) => e.previewUrl)?.previewUrl;
+  }, [sentEmails]);
+
   // Toast Helpers
   const addToast = useCallback((type: 'success' | 'error', message: string) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -381,6 +386,8 @@ export default function App() {
           setIsLoggedIn(false);
         }}
         onComposeClick={() => setIsComposeOpen(true)}
+        bullmqUrl={`${backendUrl}/admin/queues`}
+        etherealUrl={latestEtherealUrl}
       />
 
       {/* Main Viewport */}

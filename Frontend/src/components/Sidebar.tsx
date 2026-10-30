@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Mail,
   LogOut,
+  Layers,
+  ExternalLink,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 
@@ -20,6 +22,8 @@ interface SidebarProps {
   userEmail: string;
   onLogout: () => void;
   onComposeClick: () => void;
+  bullmqUrl?: string;
+  etherealUrl?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,7 +37,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userEmail,
   onLogout,
   onComposeClick,
+  bullmqUrl = 'http://localhost:4000/admin/queues',
+  etherealUrl,
 }) => {
+  const effectiveEtherealUrl = etherealUrl || 'https://ethereal.email/messages';
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 select-none">
       {/* Top Header / Workspace */}
@@ -128,6 +135,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {sentCount}
             </span>
           </button>
+
+          {/* Live Monitoring & Evaluator Tools */}
+          <div className="pt-4 px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Live Monitoring & Sandbox
+          </div>
+
+          {/* BullMQ Dashboard Button */}
+          <a
+            href={bullmqUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 hover:text-purple-700 hover:bg-purple-50/80 border border-slate-200/60 hover:border-purple-200 transition-all group"
+            title="Open BullMQ queue dashboard (http://localhost:4000/admin/queues)"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-5 h-5 rounded-md bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 group-hover:scale-105 transition-transform">
+                <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <div className="truncate text-left">
+                <p className="font-bold text-slate-800 group-hover:text-purple-700 truncate leading-tight">BullMQ Dashboard</p>
+                <p className="text-[10px] text-slate-400 font-medium">Queue & Worker Status</p>
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-600 shrink-0 transition-colors" />
+          </a>
+
+          {/* Ethereal Mailbox Button */}
+          <a
+            href={effectiveEtherealUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 hover:text-emerald-700 hover:bg-emerald-50/80 border border-slate-200/60 hover:border-emerald-200 transition-all group"
+            title={etherealUrl ? "Open latest sent email on Ethereal" : "Open Ethereal fake mailbox inbox"}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-105 transition-transform">
+                <Mail className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <div className="truncate text-left">
+                <p className="font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight">Ethereal Mailbox</p>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {etherealUrl ? 'Latest Sent Email ↗' : 'View Sandbox Inbox'}
+                </p>
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0 transition-colors" />
+          </a>
 
         </div>
       </div>
