@@ -1,0 +1,7 @@
+{
+  "name": "ReachInbox",
+  "description": "Cold-email scheduling dashboard to manage leads, compose outbound campaigns, and schedule email delivery at scale.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

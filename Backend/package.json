@@ -1,0 +1,41 @@
+{
+  "name": "email-scheduler-backend",
+  "version": "1.0.0",
+  "description": "Email scheduler with BullMQ, PostgreSQL (Neon), Elasticsearch, and Slack integration",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:push": "prisma db push",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "dependencies": {
+    "@bull-board/api": "^6.5.0",
+    "@bull-board/express": "^6.5.0",
+    "@elastic/elasticsearch": "^8.17.0",
+    "@prisma/client": "^6.2.0",
+    "bullmq": "^5.34.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "nodemailer": "^6.9.16",
+    "uuid": "^11.0.5",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.2",
+    "prisma": "^6.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

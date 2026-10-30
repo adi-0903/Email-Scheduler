@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmailStatus {
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+}
+
+model Email {
+  id          String      @id @default(uuid())
+  sender      String      // Sender email address (supports multiple senders)
+  recipient   String
+  subject     String
+  body        String      @db.Text
+  scheduledAt DateTime    // When the email should be sent
+  sentAt      DateTime?   // When it was actually sent
+  status      EmailStatus @default(SCHEDULED)
+  jobId       String?     @unique // BullMQ job ID for idempotency
+  previewUrl  String?     // Ethereal Email public preview link
+  attempts    Int         @default(0)
+  lastError   String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status])
+  @@index([sender])
+  @@index([scheduledAt])
+  @@index([sender, status])
+}
+
+model SlackIntegration {
+  id          String   @id @default(uuid())
+  tenantId    String   @unique // Could be a sender email or org identifier
+  accessToken String
+  channelId   String?  // Channel to post notifications to
+  teamName    String?
+  botUserId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+

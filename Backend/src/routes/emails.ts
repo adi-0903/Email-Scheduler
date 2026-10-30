@@ -1,0 +1,231 @@
+import { Router, Request, Response } from "express";
+import prisma from "../db";
+import { enqueueEmail } from "../queue/emailQueue";
+import { indexEmail } from "../services/elasticService";
+
+const router = Router();
+
+/**
+ * POST /api/emails/schedule
+ * Schedule one or more emails for future delivery.
+ *
+ * Body:
+ * {
+ *   "emails": [
+ *     {
+ *       "sender": "alice@example.com",
+ *       "recipient": "bob@example.com",
+ *       "subject": "Hello",
+ *       "body": "<h1>Hi Bob</h1>",
+ *       "scheduledAt": "2025-01-15T10:00:00Z"
+ *     }
+ *   ]
+ * }
+ */
+router.post("/schedule", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { emails } = req.body;
+
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      res.status(400).json({
+        error: "Request body must contain a non-empty 'emails' array",
+      });
+      return;
+    }
+
+    const results = [];
+
+    for (const emailData of emails) {
+      const { sender, recipient, subject, body, scheduledAt } = emailData;
+
+      // Validation
+      if (!sender || !recipient || !subject || !body || !scheduledAt) {
+        results.push({
+          error: "Missing required fields: sender, recipient, subject, body, scheduledAt",
+          data: emailData,
+        });
+        continue;
+      }
+
+      const scheduledDate = new Date(scheduledAt);
+      if (isNaN(scheduledDate.getTime())) {
+        results.push({
+          error: "Invalid scheduledAt date",
+          data: emailData,
+        });
+        continue;
+      }
+
+      // Create DB record
+      const email = await prisma.email.create({
+        data: {
+          sender,
+          recipient,
+          subject,
+          body,
+          scheduledAt: scheduledDate,
+          status: "SCHEDULED",
+        },
+      });
+
+      // Enqueue in BullMQ with delay
+      const jobId = await enqueueEmail(
+        email.id,
+        scheduledDate,
+        sender,
+        recipient,
+        subject
+      );
+
+      // Update DB with jobId and set status to QUEUED
+      const updatedEmail = await prisma.email.update({
+        where: { id: email.id },
+        data: { jobId, status: "QUEUED" },
+      });
+
+      // Index in Elasticsearch (for search)
+      await indexEmail({
+        ...updatedEmail,
+        status: updatedEmail.status,
+      });
+
+      results.push({
+        id: email.id,
+        jobId,
+        sender,
+        recipient,
+        subject,
+        scheduledAt: scheduledDate,
+        status: "QUEUED",
+      });
+    }
+
+    res.status(201).json({
+      message: `${results.filter((r) => !("error" in r)).length} email(s) scheduled`,
+      results,
+    });
+  } catch (err: any) {
+    console.error("[API] Error scheduling emails:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/emails
+ * List all emails with optional filtering.
+ * Query params: status, sender, page, limit
+ */
+router.get("/", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      status,
+      sender,
+      page = "1",
+      limit = "20",
+    } = req.query as Record<string, string>;
+
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (status) {
+      const upper = status.toUpperCase();
+      if (upper === "SCHEDULED" || upper === "QUEUED") {
+        where.status = { in: ["SCHEDULED", "QUEUED"] };
+      } else {
+        where.status = upper;
+      }
+    }
+    if (sender) where.sender = sender;
+
+    const [emails, total] = await Promise.all([
+      prisma.email.findMany({
+        where,
+        orderBy: { scheduledAt: "desc" },
+        skip,
+        take: limitNum,
+      }),
+      prisma.email.count({ where }),
+    ]);
+
+    res.json({
+      data: emails,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (err: any) {
+    console.error("[API] Error listing emails:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/emails/:id
+ * Get a single email by ID.
+ */
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const email = await prisma.email.findUnique({
+      where: { id },
+    });
+
+    if (!email) {
+      res.status(404).json({ error: "Email not found" });
+      return;
+    }
+
+    res.json(email);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/emails/:id
+ * Cancel a scheduled email (only if not yet sent).
+ */
+router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const email = await prisma.email.findUnique({
+      where: { id },
+    });
+
+    if (!email) {
+      res.status(404).json({ error: "Email not found" });
+      return;
+    }
+
+    if (email.status === "SENT") {
+      res.status(400).json({ error: "Cannot cancel an already-sent email" });
+      return;
+    }
+
+    // Remove from BullMQ queue
+    if (email.jobId) {
+      const { emailQueue } = await import("../queue/emailQueue");
+      const job = await emailQueue.getJob(email.jobId);
+      if (job) {
+        await job.remove();
+      }
+    }
+
+    // Update DB status
+    await prisma.email.update({
+      where: { id: email.id },
+      data: { status: "FAILED", lastError: "Cancelled by user" },
+    });
+
+    res.json({ message: "Email cancelled", id: email.id });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

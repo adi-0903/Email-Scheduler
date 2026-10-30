@@ -1,0 +1,19 @@
+# Redis = Redis Cloud (no Docker container needed)
+# PostgreSQL = Neon (no Docker container needed)
+# Only Elasticsearch runs locally via Docker
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+volumes:
+  es_data:
