@@ -39,11 +39,25 @@ function mapBackendEmail(email: any): EmailItem {
 }
 
 export default function App() {
-  // Navigation & User Auth
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [user, setUser] = useState<{ name: string; email: string }>({
-    name: 'Alex Morgan',
-    email: 'alex.morgan@gmail.com',
+  // Navigation & User Auth - Defaults to logged-out so visitors start on the Login page
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('reachinbox_user');
+      return Boolean(stored);
+    } catch {
+      return false;
+    }
+  });
+
+  const [user, setUser] = useState<{ name: string; email: string }>(() => {
+    try {
+      const stored = localStorage.getItem('reachinbox_user');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return {
+      name: 'Aditya Singhal',
+      email: 'singhaladitya611@gmail.com',
+    };
   });
   const [isSlackConnected, setIsSlackConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('scheduled');
@@ -347,19 +361,36 @@ export default function App() {
     );
   };
 
+  // Auth Handlers
+  const handleLogin = useCallback(
+    (userData?: { name: string; email: string }) => {
+      const profile = userData || {
+        name: 'Aditya Singhal',
+        email: 'singhaladitya611@gmail.com',
+      };
+      try {
+        localStorage.setItem('reachinbox_user', JSON.stringify(profile));
+      } catch {}
+      setUser(profile);
+      setIsLoggedIn(true);
+      addToast('success', `Signed in as ${profile.name}`);
+    },
+    [addToast]
+  );
+
+  const handleLogout = useCallback(() => {
+    try {
+      localStorage.removeItem('reachinbox_user');
+    } catch {}
+    setIsLoggedIn(false);
+    addToast('success', 'Logged out successfully');
+  }, [addToast]);
+
   // If user is logged out, show Login / Create Account Screen
   if (!isLoggedIn) {
     return (
       <div className="relative min-h-screen">
-        <LoginScreen
-          onLogin={(userData) => {
-            if (userData) {
-              setUser(userData);
-            }
-            setIsLoggedIn(true);
-            addToast('success', `Welcome back, ${userData?.name || 'Alex'}!`);
-          }}
-        />
+        <LoginScreen onLogin={handleLogin} />
         <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </div>
     );
@@ -384,9 +415,7 @@ export default function App() {
         onToggleSlack={handleToggleSlack}
         userName={user.name}
         userEmail={user.email}
-        onLogout={() => {
-          setIsLoggedIn(false);
-        }}
+        onLogout={handleLogout}
         onComposeClick={() => setIsComposeOpen(true)}
         bullmqUrl={`${backendUrl}/admin/queues`}
         etherealUrl={latestEtherealUrl}
@@ -400,9 +429,7 @@ export default function App() {
         <Header
           userName={user.name}
           userEmail={user.email}
-          onLogout={() => {
-            setIsLoggedIn(false);
-          }}
+          onLogout={handleLogout}
         />
 
         {/* Content Body */}
