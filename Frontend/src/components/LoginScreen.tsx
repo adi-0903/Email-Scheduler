@@ -47,7 +47,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   // Google Authentication Trigger
   const handleGoogleAuth = () => {
     const googleClientId =
-      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID) || '';
+      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID) ||
+      '55829849735-82jrbrtt90ntannpo6jk2rpb7ud1rd54.apps.googleusercontent.com';
 
     // If a Google Client ID is configured and Google SDK is present, trigger official Google OAuth 2.0
     if (googleClientId && typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2) {
