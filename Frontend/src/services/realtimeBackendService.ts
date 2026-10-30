@@ -79,7 +79,7 @@ export class RealtimeEmailClient {
   private statusListeners: Set<(connected: boolean) => void> = new Set();
   private isExplicitlyClosed = false;
 
-  constructor(backendBaseUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) || 'http://localhost:4000') {
+  constructor(backendBaseUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) || 'https://email-scheduler-jqgy.onrender.com') {
     this.httpUrl = backendBaseUrl.replace(/\/$/, '');
     const wsProto = this.httpUrl.startsWith('https') ? 'wss' : 'ws';
     const host = this.httpUrl.replace(/^https?:\/\//, '');

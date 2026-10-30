@@ -51,7 +51,7 @@ export default function App() {
   // Backend Real-Time Connection
   const [isBackendModalOpen, setIsBackendModalOpen] = useState(false);
   const [backendUrl, setBackendUrl] = useState(
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) || 'http://localhost:4000'
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) || 'https://email-scheduler-jqgy.onrender.com'
   );
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 

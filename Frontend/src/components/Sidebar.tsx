@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userEmail,
   onLogout,
   onComposeClick,
-  bullmqUrl = 'http://localhost:4000/admin/queues',
+  bullmqUrl = 'https://email-scheduler-jqgy.onrender.com/admin/queues',
   etherealUrl,
   isBackendConnected = false,
   onOpenBackendEngine,
