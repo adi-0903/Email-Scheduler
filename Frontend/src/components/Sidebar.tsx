@@ -8,6 +8,7 @@ import {
   LogOut,
   Layers,
   ExternalLink,
+  Activity,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 
@@ -24,6 +25,8 @@ interface SidebarProps {
   onComposeClick: () => void;
   bullmqUrl?: string;
   etherealUrl?: string;
+  isBackendConnected?: boolean;
+  onOpenBackendEngine?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,6 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onComposeClick,
   bullmqUrl = 'http://localhost:4000/admin/queues',
   etherealUrl,
+  isBackendConnected = false,
+  onOpenBackendEngine,
 }) => {
   const effectiveEtherealUrl = etherealUrl || 'https://ethereal.email/messages';
   return (
@@ -182,6 +187,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0 transition-colors" />
           </a>
+
+          {/* Real-Time Backend Engine Button */}
+          {onOpenBackendEngine && (
+            <button
+              type="button"
+              onClick={onOpenBackendEngine}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 hover:text-blue-700 hover:bg-blue-50/80 border border-slate-200/60 hover:border-blue-200 transition-all group cursor-pointer text-left"
+              title="Configure Real-Time Backend Engine & WebSockets"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-5 h-5 rounded-md bg-slate-900 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
+                  <Activity className="w-3.5 h-3.5 text-blue-400 stroke-[2.2]" />
+                </div>
+                <div className="truncate">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-bold text-slate-800 group-hover:text-blue-700 truncate leading-tight">
+                      Real-Time Engine
+                    </p>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        isBackendConnected ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-amber-400 animate-pulse'
+                      }`}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium truncate">
+                    {isBackendConnected ? 'WebSocket Live (:4000)' : 'Connecting...'}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0 -rotate-90 transition-transform" />
+            </button>
+          )}
 
         </div>
       </div>

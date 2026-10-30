@@ -388,21 +388,19 @@ export default function App() {
         onComposeClick={() => setIsComposeOpen(true)}
         bullmqUrl={`${backendUrl}/admin/queues`}
         etherealUrl={latestEtherealUrl}
+        isBackendConnected={isBackendConnected}
+        onOpenBackendEngine={() => setIsBackendModalOpen(true)}
       />
 
       {/* Main Viewport */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto h-screen">
-        {/* Top Header */}
+        {/* Top Header - Minimal & Lightweight */}
         <Header
           userName={user.name}
           userEmail={user.email}
-          isSlackConnected={isSlackConnected}
-          onToggleSlack={handleToggleSlack}
           onLogout={() => {
             setIsLoggedIn(false);
           }}
-          onOpenBackendEngine={() => setIsBackendModalOpen(true)}
-          isBackendConnected={isBackendConnected}
         />
 
         {/* Content Body */}
