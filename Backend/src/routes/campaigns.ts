@@ -103,12 +103,13 @@ router.post("/schedule", async (req: Request, res: Response): Promise<void> => {
         status: updated.status,
       });
 
-      // 5. Broadcast real-time WebSocket event
+      // 5. Broadcast real-time WebSocket event (with sender isolation tag)
       broadcast({
         type: "email:scheduled",
         data: {
           campaignId,
           jobId,
+          sender: fromEmail.toLowerCase().trim(),
           email: lead.email,
           scheduledTime: scheduledDate.toLocaleString(),
         },

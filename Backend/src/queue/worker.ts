@@ -101,6 +101,7 @@ export function startWorker(): Worker {
         data: {
           campaignId: emailId,
           jobId: job.id ?? "",
+          sender: sender.toLowerCase().trim(),
           email: recipient,
         },
       });
@@ -131,6 +132,7 @@ export function startWorker(): Worker {
           data: {
             campaignId: emailId,
             jobId: job.id ?? "",
+            sender: sender.toLowerCase().trim(),
             email: recipient,
             sentTime: new Date().toLocaleString(),
             messageId: result.messageId,
@@ -157,6 +159,7 @@ export function startWorker(): Worker {
           data: {
             campaignId: emailId,
             jobId: job.id ?? "",
+            sender: sender.toLowerCase().trim(),
             email: recipient,
             reason: sendError.message,
             failedTime: new Date().toLocaleString(),

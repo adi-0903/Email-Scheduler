@@ -35,6 +35,8 @@ interface ComposeModalProps {
   onClose: () => void;
   onSchedule: (formData: ComposeFormState) => void;
   initialPreset?: 'empty' | 'filled' | 'errors';
+  defaultSenderEmail?: string;
+  defaultSenderName?: string;
 }
 
 const DEFAULT_EMPTY_STATE: ComposeFormState = {
@@ -99,6 +101,8 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   onClose,
   onSchedule,
   initialPreset = 'empty',
+  defaultSenderEmail = '',
+  defaultSenderName = '',
 }) => {
   const [form, setForm] = useState<ComposeFormState>(DEFAULT_EMPTY_STATE);
   const [deliveryMode, setDeliveryMode] = useState<'now' | 'schedule'>('now');
@@ -147,14 +151,18 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         hourlyLimit: 'Must be at least 1',
       });
     } else {
-      setForm(DEFAULT_EMPTY_STATE);
+      setForm({
+        ...DEFAULT_EMPTY_STATE,
+        fromEmail: defaultSenderEmail,
+        fromName: defaultSenderName,
+      });
       if (editorRef.current) {
         editorRef.current.innerHTML = '';
       }
       setErrors({});
     }
     setIsScheduling(false);
-  }, [initialPreset, isOpen]);
+  }, [initialPreset, isOpen, defaultSenderEmail, defaultSenderName]);
 
   // Keep editorRef innerHTML in sync when opening with pre-filled content
   useEffect(() => {

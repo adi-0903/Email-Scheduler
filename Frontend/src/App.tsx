@@ -111,43 +111,76 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Fetch real data from backend on mount or reconnect
+  // Fetch real data from backend on mount or reconnect (WITH STRICT USER DATA ISOLATION)
   const loadBackendEmails = useCallback(async () => {
+    if (!user.email) {
+      setScheduledEmails([]);
+      setSentEmails([]);
+      setScheduledTotal(0);
+      setSentTotal(0);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const [scheduledRes, sentRes] = await Promise.all([
-        realtimeClient.fetchEmails({ status: 'SCHEDULED', limit: 100 }),
-        realtimeClient.fetchEmails({ status: 'SENT', limit: 100 }),
+        realtimeClient.fetchEmails({ status: 'SCHEDULED', sender: user.email, limit: 100 }),
+        realtimeClient.fetchEmails({ status: 'SENT', sender: user.email, limit: 100 }),
       ]);
 
       if (scheduledRes.data) {
         const mapped = scheduledRes.data.map(mapBackendEmail);
         setScheduledEmails(mapped);
         setScheduledTotal(scheduledRes.pagination?.total ?? mapped.length);
+      } else {
+        setScheduledEmails([]);
+        setScheduledTotal(0);
       }
 
       if (sentRes.data) {
         const mapped = sentRes.data.map(mapBackendEmail);
         setSentEmails(mapped);
         setSentTotal(sentRes.pagination?.total ?? mapped.length);
+      } else {
+        setSentEmails([]);
+        setSentTotal(0);
       }
     } catch (err) {
-      console.warn('[App] Could not fetch initial backend emails:', err);
+      console.warn('[App] Could not fetch user-isolated emails:', err);
+      setScheduledEmails([]);
+      setSentEmails([]);
+      setScheduledTotal(0);
+      setSentTotal(0);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user.email]);
 
-  // Check Slack status on mount
+  // Sync emails whenever active user changes
   useEffect(() => {
+    if (isLoggedIn && user.email) {
+      loadBackendEmails();
+    } else {
+      setScheduledEmails([]);
+      setSentEmails([]);
+      setScheduledTotal(0);
+      setSentTotal(0);
+    }
+  }, [isLoggedIn, user.email, loadBackendEmails]);
+
+  // Check Slack status on mount or user change
+  useEffect(() => {
+    if (!user.email) return;
     realtimeClient.checkSlackStatus(user.email).then((res) => {
       if (res.connected) {
         setIsSlackConnected(true);
+      } else {
+        setIsSlackConnected(false);
       }
     });
   }, [user.email]);
 
-  // Real-Time WebSocket Event Listener & Auto-sync
+  // Real-Time WebSocket Event Listener & Auto-sync (WITH USER DATA ISOLATION)
   useEffect(() => {
     const unsubStatus = realtimeClient.onStatusChange((connected) => {
       setIsBackendConnected(connected);
@@ -158,6 +191,12 @@ export default function App() {
     });
 
     const unsubEvents = realtimeClient.subscribe((event: RealtimeEvent) => {
+      // DATA ISOLATION GUARD: Ignore events belonging to other users
+      const eventSender = (event.data as any).sender;
+      if (eventSender && user.email && eventSender.toLowerCase() !== user.email.toLowerCase()) {
+        return;
+      }
+
       if (event.type === 'email:scheduled') {
         const { email, scheduledTime, jobId } = event.data;
         setScheduledEmails((prev) => {
@@ -302,8 +341,8 @@ export default function App() {
     if (isBackendConnected) {
       try {
         const result = await realtimeClient.scheduleCampaign({
-          fromEmail: formData.fromEmail || 'alex.morgan@reachinbox.ai',
-          fromName: formData.fromName || 'Alex Morgan',
+          fromEmail: formData.fromEmail || user.email,
+          fromName: formData.fromName || user.name,
           subject: formData.subject,
           bodyHtml: formData.bodyHtml || formData.body,
           recipients,
@@ -499,6 +538,8 @@ export default function App() {
         isOpen={isComposeOpen}
         onClose={() => setIsComposeOpen(false)}
         onSchedule={handleScheduleEmail}
+        defaultSenderEmail={user.email}
+        defaultSenderName={user.name}
       />
 
       {/* Email Preview Drawer / Modal */}

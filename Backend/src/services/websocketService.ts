@@ -7,6 +7,7 @@ export type RealtimeEvent =
       data: {
         campaignId: string;
         jobId: string;
+        sender?: string;
         email: string;
         scheduledTime: string;
       };
@@ -16,6 +17,7 @@ export type RealtimeEvent =
       data: {
         campaignId: string;
         jobId: string;
+        sender?: string;
         email: string;
       };
     }
@@ -24,6 +26,7 @@ export type RealtimeEvent =
       data: {
         campaignId: string;
         jobId: string;
+        sender?: string;
         email: string;
         sentTime: string;
         messageId: string;
@@ -35,6 +38,7 @@ export type RealtimeEvent =
       data: {
         campaignId: string;
         jobId: string;
+        sender?: string;
         email: string;
         reason: string;
         failedTime: string;
@@ -44,6 +48,7 @@ export type RealtimeEvent =
       type: "campaign:progress";
       data: {
         campaignId: string;
+        sender?: string;
         total: number;
         sentCount: number;
         failedCount: number;

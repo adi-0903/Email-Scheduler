@@ -112,7 +112,7 @@ router.post("/schedule", async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/emails
- * List all emails with optional filtering.
+ * List all emails with strict tenant/sender data isolation.
  * Query params: status, sender, page, limit
  */
 router.get("/", async (req: Request, res: Response): Promise<void> => {
@@ -128,7 +128,25 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
     const skip = (pageNum - 1) * limitNum;
 
-    const where: any = {};
+    // STRICT MULTI-TENANT PRIVACY GUARD:
+    // If sender email is not provided, return empty list (prevents data leakage between users)
+    if (!sender || !sender.trim()) {
+      res.json({
+        data: [],
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+      return;
+    }
+
+    const where: any = {
+      sender: sender.toLowerCase().trim(),
+    };
+
     if (status) {
       const upper = status.toUpperCase();
       if (upper === "SCHEDULED" || upper === "QUEUED") {
@@ -137,7 +155,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         where.status = upper;
       }
     }
-    if (sender) where.sender = sender;
 
     const [emails, total] = await Promise.all([
       prisma.email.findMany({
@@ -166,13 +183,20 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/emails/:id
- * Get a single email by ID.
+ * Get a single email by ID (with sender isolation).
  */
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const email = await prisma.email.findUnique({
-      where: { id },
+    const { sender } = req.query as { sender?: string };
+
+    const where: any = { id };
+    if (sender) {
+      where.sender = sender.toLowerCase().trim();
+    }
+
+    const email = await prisma.email.findFirst({
+      where,
     });
 
     if (!email) {
@@ -188,17 +212,24 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
 
 /**
  * DELETE /api/emails/:id
- * Cancel a scheduled email (only if not yet sent).
+ * Cancel a scheduled email (only if not yet sent and authorized).
  */
 router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const email = await prisma.email.findUnique({
-      where: { id },
+    const { sender } = req.query as { sender?: string };
+
+    const where: any = { id };
+    if (sender) {
+      where.sender = sender.toLowerCase().trim();
+    }
+
+    const email = await prisma.email.findFirst({
+      where,
     });
 
     if (!email) {
-      res.status(404).json({ error: "Email not found" });
+      res.status(404).json({ error: "Email not found or unauthorized" });
       return;
     }
 

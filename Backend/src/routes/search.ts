@@ -24,10 +24,22 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       size = "20",
     } = req.query as Record<string, string>;
 
+    // STRICT MULTI-TENANT SEARCH ISOLATION:
+    if (!sender || !sender.trim()) {
+      res.json({
+        query: q,
+        total: 0,
+        from: 0,
+        size: 0,
+        hits: [],
+      });
+      return;
+    }
+
     const result = await searchEmails(q, {
       from: parseInt(from, 10),
       size: Math.min(100, parseInt(size, 10)),
-      sender,
+      sender: sender.toLowerCase().trim(),
       status,
     });
 
